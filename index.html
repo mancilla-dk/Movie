@@ -399,7 +399,16 @@
             vLogin.style.display = "none";
             vSplash.style.display = "block";
             document.getElementById("texto-bienvenida").innerText = "¡Hola, " + nombre + "!";
-            setTimeout(() => { window.location.href = "https://la.movie/"; }, 3000);
+            
+            setTimeout(() => { 
+                // Intenta abrir con el comando interno de Median.co
+                window.location.href = "gonative://open/url?url=" + encodeURIComponent("https://la.movie/");
+                
+                // Respaldo por si se abre desde un navegador web normal o falla el comando
+                setTimeout(() => {
+                    window.location.href = "https://la.movie/";
+                }, 500);
+            }, 3000);
         }
 
         window.contactarProveedor = function() {
