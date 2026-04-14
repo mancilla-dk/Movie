@@ -91,6 +91,9 @@
         .btn-whatsapp { background: #25D366; color: #ffffff; margin-top: 5px; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.2); }
         .btn-whatsapp:hover { background: #20bd5a; box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4); }
 
+        .btn-gratis { background: #f59e0b; color: #141414; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
+        .btn-gratis:hover { background: #d97706; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5); }
+
         #mensaje-sistema { margin-top: 15px; font-size: 14px; display: none; font-weight: 500; }
 
         /* Vistas ocultas */
@@ -154,10 +157,12 @@
         <button onclick="procesarLogin()">Entrar a mi cuenta</button>
         <p id="mensaje-sistema"></p>
 
-        <div style="margin-top: 35px; border-top: 1px solid var(--glass-border); padding-top: 25px;">
+                      <div style="margin-top: 35px; border-top: 1px solid var(--glass-border); padding-top: 25px;">
             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">¿Aún no tienes una membresía?</p>
+            <button id="btn-demo-login" class="btn-gratis" onclick="generarDemo()" style="margin-bottom: 10px; display: none;">Generar Demo de 6 Horas</button>
             <button class="btn-whatsapp" onclick="contactarProveedor()">Adquirir acceso</button>
         </div>
+
     </div>
 
     <div id="vista-splash" class="splash-view" style="display: none;">
@@ -219,11 +224,13 @@
             
             <div class="input-group">
                 <label>Selecciona el Plan</label>
-                <select id="nuevo-plan">
+                               <select id="nuevo-plan">
+                    <option value="0.5">Prueba Demo (12 Horas)</option>
                     <option value="30">1 Mes ($99)</option>
                     <option value="180">6 Meses ($499) - Ahorra 1 mes</option>
                     <option value="365">Pase Anual ($899) - Ahorra 3 meses</option>
                 </select>
+
             </div>
 
             <button class="btn-admin" style="background: rgba(255,255,255,0.05);" onclick="registrarUsuario()">Crear Cliente</button>
@@ -235,15 +242,24 @@
             <div class="clientes-container" id="lista-clientes-html"></div>
         </div>
 
-        <div id="sec-ajustes" style="display: none; text-align: left;">
+              <div id="sec-ajustes" style="display: none; text-align: left;">
             <div style="background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
                 <h4 style="color:#25D366; margin-top:0; margin-bottom: 5px; font-size: 16px;">WhatsApp de Contacto</h4>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Incluye el código de país (ej: 521234567890).</p>
                 <input type="number" id="input-wa" placeholder="Ej: 52...">
-                <button class="btn-admin btn-small" onclick="guardarWhatsApp()">Guardar Número</button>
+                
+                <h4 style="color:#f59e0b; margin-top:25px; margin-bottom: 5px; font-size: 16px;">Botón Demo en Login</h4>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Muestra u oculta el botón de prueba gratuita para los usuarios.</p>
+                <select id="select-mostrar-demo">
+                    <option value="si">Mostrar botón de Demo</option>
+                    <option value="no">Ocultar botón de Demo</option>
+                </select>
+
+                <button class="btn-admin btn-small" onclick="guardarAjustes()" style="margin-top: 20px; background: rgba(255,255,255,0.1); color: #fff;">Guardar Ajustes</button>
             </div>
             <p id="mensaje-ajustes" style="font-size: 14px; text-align: center; margin-top: 15px;"></p>
         </div>
+
     </div>
 
     <div id="vista-banner" class="banner-view" style="display: none;">
@@ -255,6 +271,15 @@
                 <button class="btn-whatsapp" onclick="contactarProveedor()" style="margin-top: 0;">Contactar al Proveedor</button>
                 <button class="btn-admin" onclick="cerrarSesion()" style="margin-top: 0; color: #a3a3a3; border-color: rgba(255, 255, 255, 0.2);">Cerrar Sesión</button>
             </div>
+        </div>
+    </div>
+       
+    <div id="modal-prueba-vencida" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color: #e50914; margin-bottom: 15px;">Prueba Finalizada</h3>
+            <p style="color: #ffffff; font-size: 16px; line-height: 1.5; font-weight: 500;">Prueba finalizado porfavor contacte a su administrador para actualizar su plan de oferta de $49 pesos el mes.</p>
+            <button class="btn-whatsapp" onclick="contactarProveedor()" style="margin-top: 20px;">Contactar Administrador</button>
+            <button class="btn-admin" onclick="document.getElementById('modal-prueba-vencida').style.display='none';" style="margin-top: 10px;">Cerrar</button>
         </div>
     </div>
 
@@ -284,22 +309,40 @@
         let dbConfig = { whatsapp: "" };
         let usuarioAEditar = ""; 
 
-        onValue(ref(db, 'config'), (snapshot) => {
+                onValue(ref(db, 'config'), (snapshot) => {
             if (snapshot.exists()) {
                 dbConfig = snapshot.val();
                 document.getElementById("input-wa").value = dbConfig.whatsapp || "";
+                
+                const selectDemo = document.getElementById("select-mostrar-demo");
+                const btnDemo = document.getElementById("btn-demo-login");
+                
+                if (selectDemo) selectDemo.value = dbConfig.mostrarDemo === false ? "no" : "si";
+                
+                if (btnDemo) {
+                    if (dbConfig.mostrarDemo === false) {
+                        btnDemo.style.display = "none";
+                    } else {
+                        btnDemo.style.display = "block";
+                    }
+                }
             }
         });
 
-        window.onload = async function() {
+
+                window.onload = async function() {
             const userGuardado = localStorage.getItem("laMovieUser");
+
             if (userGuardado && userGuardado !== "ZonaTecno") {
+                // Usuario premium logueado
                 vLogin.style.display = "none";
                 validarEnFirebase(userGuardado, null, true);
             }
         };
 
-        window.procesarLogin = function() {
+
+              
+                window.procesarLogin = function() {
             const user = document.getElementById("usuario").value.trim();
             const pass = document.getElementById("password").value.trim();
             msjSis.style.display = "none";
@@ -313,8 +356,35 @@
 
             if (!user || !pass) return mostrarMsj(msjSis, "Llena todos los campos", "#ef4444");
 
+            if (user.includes(".") || user.includes("@") || user.includes("#") || user.includes("$") || user.includes("[") || user.includes("]")) {
+                return mostrarMsj(msjSis, "Ingresa tu usuario, no un correo electrónico.", "#ef4444");
+            }
+
             mostrarMsj(msjSis, "Conectando...", "#e50914");
             validarEnFirebase(user, pass, false);
+        };
+
+               window.generarDemo = async function() {
+            if (localStorage.getItem("yaUsoDemo") === "true") {
+                return mostrarMsj(msjSis, "Ya has realizado tu prueba demo.", "#ef4444");
+            }
+
+            mostrarMsj(msjSis, "Generando acceso de 6 horas...", "#f59e0b");
+            const idAleatorio = Math.floor(Math.random() * 100000);
+            const demoUser = "demo_" + idAleatorio;
+            const expiracionDemo = Date.now() + (6 * 60 * 60 * 1000); // 6 horas exactas
+
+            try {
+                await set(ref(db, 'usuarios/' + demoUser), {
+                    nombre: "Prueba Demo", password: "demo", creado: Date.now(), expira: expiracionDemo
+                });
+                
+                localStorage.setItem("laMovieUser", demoUser);
+                localStorage.setItem("yaUsoDemo", "true");
+                mostrarSplashAnimado("Prueba Demo");
+            } catch (error) {
+                mostrarMsj(msjSis, "Error de red al generar demo. Intenta de nuevo.", "#ef4444");
+            }
         };
 
         async function validarEnFirebase(user, pass, esAutoLogin) {
@@ -324,21 +394,21 @@
                     const datos = snapshot.val();
                     if (esAutoLogin || datos.password === pass) {
                         const diasRestantes = (datos.expira - Date.now()) / (1000 * 60 * 60 * 24);
-                        if (diasRestantes < 0) {
+                                               if (diasRestantes < 0) {
                             vLogin.style.display = "block";
                             localStorage.removeItem("laMovieUser");
-                            mostrarMsj(msjSis, "Membresía vencida. Contacte al proveedor.", "#ef4444");
+                            document.getElementById("modal-prueba-vencida").style.display = "flex";
                         } else {
+
                             localStorage.setItem("laMovieUser", user);
                             
                             if (diasRestantes <= 2) {
-                                // Verificar si el aviso ya se mostró hoy
                                 let mostrarAviso = true;
                                 const ultimoAviso = localStorage.getItem("avisoVisto_" + user);
                                 if (ultimoAviso) {
                                     const horasPasadas = (Date.now() - parseInt(ultimoAviso)) / (1000 * 60 * 60);
                                     if (horasPasadas < 24) {
-                                        mostrarAviso = false; // Menos de 24 horas, no mostrar
+                                        mostrarAviso = false;
                                     }
                                 }
 
@@ -347,10 +417,10 @@
                                     vLogin.style.display = "none";
                                     vBanner.style.display = "flex"; 
                                 } else {
-                                    irAPeliculas(); // Salto directo
+                                    irAPeliculas();
                                 }
                             } else {
-                                irAPeliculas(); // Salto directo si tiene muchos días
+                                irAPeliculas();
                             }
                         }
                     } else { mostrarMsj(msjSis, "Contraseña incorrecta", "#ef4444"); }
@@ -367,7 +437,6 @@
         window.continuarHaciaAviso = function() {
             const user = localStorage.getItem("laMovieUser");
             if(user) {
-                // Guarda la marca de tiempo de cuándo le dio a "Continuar"
                 localStorage.setItem("avisoVisto_" + user, Date.now());
             }
             vBanner.style.display = "none"; 
@@ -401,13 +470,8 @@
             document.getElementById("texto-bienvenida").innerText = "¡Hola, " + nombre + "!";
             
             setTimeout(() => { 
-                // Intenta abrir con el comando interno de Median.co
-                window.location.href = "gonative://open/url?url=" + encodeURIComponent("https://la.movie/");
-                
-                // Respaldo por si se abre desde un navegador web normal o falla el comando
-                setTimeout(() => {
-                    window.location.href = "https://la.movie/";
-                }, 500);
+                // AQUÍ ESTÁ EL CÓDIGO CORREGIDO PARA QUE QUEDE DENTRO DE LA APP
+                window.location.replace("https://la.movie/");
             }, 3000);
         }
 
@@ -430,14 +494,19 @@
             if(tab === 'lista') cargarListaClientes();
         };
 
-        window.registrarUsuario = async function() {
-            const nombre = document.getElementById("nuevo-nombre").value.trim();
+               window.registrarUsuario = async function() {
+                       const nombre = document.getElementById("nuevo-nombre").value.trim();
             const usuario = document.getElementById("nuevo-usuario").value.trim();
             const pass = document.getElementById("nueva-pass").value.trim();
-            const diasPlan = parseInt(document.getElementById("nuevo-plan").value); 
+            const diasPlan = parseFloat(document.getElementById("nuevo-plan").value); 
             const msj = document.getElementById("mensaje-admin");
 
+
             if (!nombre || !usuario || !pass) return mostrarMsj(msj, "Faltan datos", "#ef4444");
+
+            if (usuario.includes(".") || usuario.includes("@") || usuario.includes("#") || usuario.includes("$") || usuario.includes("[") || usuario.includes("]")) {
+                return mostrarMsj(msj, "El usuario no permite puntos, arrobas ni símbolos", "#ef4444");
+            }
 
             const expiracion = Date.now() + (diasPlan * 24 * 60 * 60 * 1000);
 
@@ -461,9 +530,24 @@
                 snapshot.forEach((hijo) => {
                     const u = hijo.val();
                     const username = hijo.key;
-                    const dias = Math.ceil((u.expira - Date.now()) / (1000 * 60 * 60 * 24));
-                    const colorDias = dias < 0 ? "#ef4444" : (dias <= 2 ? "#f59e0b" : "#10b981");
-                    const estado = dias < 0 ? "VENCIDO" : dias + " días restantes";
+                                        const msRestantes = u.expira - Date.now();
+                    const dias = Math.ceil(msRestantes / (1000 * 60 * 60 * 24));
+                    const horas = Math.ceil(msRestantes / (1000 * 60 * 60));
+                    
+                    let colorDias = "#10b981";
+                    let estado = "";
+                    
+                    if (msRestantes < 0) {
+                        colorDias = "#ef4444";
+                        estado = "VENCIDO";
+                    } else if (horas < 24) {
+                        colorDias = "#f59e0b";
+                        estado = horas + (horas === 1 ? " hora restante" : " horas restantes");
+                    } else {
+                        colorDias = dias <= 2 ? "#f59e0b" : "#10b981";
+                        estado = dias + " días restantes";
+                    }
+
 
                     contenedor.innerHTML += `
                         <div class="cliente-card">
@@ -481,7 +565,6 @@
             } else { contenedor.innerHTML = "<p>No hay clientes registrados.</p>"; }
         };
 
-        /* Controladores Modal Editar Días Manuales */
         window.abrirModalEditar = function(usuario) {
             usuarioAEditar = usuario;
             document.getElementById("modal-nombre-editar").innerText = "Usuario: @" + usuario;
@@ -507,7 +590,6 @@
             }
         };
 
-        /* Controladores Modal Renovar Plan */
         window.abrirModalRenovar = function(usuario) {
             usuarioAEditar = usuario;
             document.getElementById("modal-nombre-renovar").innerText = "Usuario: @" + usuario;
@@ -528,7 +610,6 @@
                     const nuevaExpiracion = Date.now() + (diasInt * 24 * 60 * 60 * 1000);
                     await update(ref(db, 'usuarios/' + usuarioAEditar), { expira: nuevaExpiracion });
                     
-                    // Al renovar, limpiamos la restricción de 24 horas para que el aviso vuelva a funcionar en el futuro
                     localStorage.removeItem("avisoVisto_" + usuarioAEditar); 
                     
                     cerrarModalRenovar();
@@ -537,7 +618,6 @@
             }
         };
 
-        /* Borrar / Bloquear Cliente */
         window.borrarCliente = async function(usuario) {
             if(confirm("¿Seguro que deseas eliminar/bloquear a " + usuario + "? El cliente perderá su acceso de inmediato.")) {
                 await remove(ref(db, 'usuarios/' + usuario));
@@ -545,10 +625,11 @@
             }
         };
 
-        window.guardarWhatsApp = async function() {
+                window.guardarAjustes = async function() {
             let num = document.getElementById("input-wa").value.trim();
-            await update(ref(db, 'config'), { whatsapp: num });
-            mostrarMsj(document.getElementById("mensaje-ajustes"), "Número guardado", "#10b981");
+            let mostrarDemo = document.getElementById("select-mostrar-demo").value === "si";
+            await update(ref(db, 'config'), { whatsapp: num, mostrarDemo: mostrarDemo });
+            mostrarMsj(document.getElementById("mensaje-ajustes"), "Ajustes guardados correctamente", "#10b981");
         };
 
         window.cerrarSesion = function() {
